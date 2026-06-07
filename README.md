@@ -125,99 +125,116 @@ Tugas ini mencakup pemahaman menyeluruh terhadap ekosistem Power BI:
 
 ## Tugas 3 — Lab Tableau
 
-**Dataset:** `DatasetPerformaSiswa.csv`  
-**Tool:** Python (Jupyter Notebook) · Tableau Prep · Tableau Public
+**Dataset:** `DatasetPerformaSiswa.csv` — 6.607 siswa, 20 variabel akademik & demografis  
+**Tool:** Python · pandas · Tableau Public
 
-### Data Cleaning dengan Python
+### Business Problem
 
-Proses pembersihan data dilakukan secara penuh di Jupyter Notebook sebelum divisualisasikan di Tableau:
+Institusi pendidikan sering salah alokasi resource karena tidak tahu faktor mana yang benar-benar menggerakkan performa akademik. Analisis ini menjawab: **apa yang harus diprioritaskan — program kehadiran, jam belajar, kualitas tidur, atau keterlibatan orangtua?**
 
-| Langkah | Temuan & Penanganan |
+### Data Preparation (Python — pandas)
+
+Notebook menjalankan 5 langkah pembersihan secara berurutan sebelum data diekspor ke Tableau:
+
+| # | Langkah | Temuan | Penanganan | Reasoning |
+|---|---|---|---|---|
+| 1 | Missing values | `Teacher_Quality` (78), `Parental_Education_Level` (90), `Distance_from_Home` (67) | Imputasi modus | Kolom kategorikal — tidak ada urutan numerik, modus adalah representasi terbaik |
+| 2 | Duplicate check | 0 duplikat | Tidak perlu penanganan | — |
+| 3 | Konsistensi kategorikal | Semua nilai valid, tidak ada typo | Tidak perlu penanganan | — |
+| 4 | Outlier (IQR method) | `Hours_Studied` (43), `Exam_Score` (104) outlier; `Tutoring_Sessions` (430) flagged | `Hours_Studied` & `Exam_Score` di-cap ke batas IQR; `Tutoring_Sessions` dibiarkan | Nilai 4–8 sesi masih domain-valid — upper IQR bound hanya 3.5 tapi nilai 8 sesi logis secara nyata |
+| 5 | Valid range check | `Attendance` (0–100), `Sleep_Hours` (0–24), dll. | Semua dalam range valid | Verifikasi tambahan pasca-capping |
+
+> Keputusan *tidak* men-cap `Tutoring_Sessions` adalah domain judgment yang disengaja — aturan statistik tidak selalu menang atas konteks realitas data.
+
+### Visualisasi & Technical Implementation (Tableau Public)
+
+14 chart dibangun, memanfaatkan fitur Tableau berikut:
+
+| Fitur Tableau | Digunakan Untuk |
 |---|---|
-| Missing Values | 3 kolom: `Teacher_Quality` (78), `Parental_Education_Level` (90), `Distance_from_Home` (67) → diimputasi dengan modus karena kolom kategorikal |
-| Duplicate Data | Tidak ditemukan duplikat |
-| Tipe Data & Distribusi Kategorikal | Semua nilai valid dan konsisten, tidak ada typo atau inkonsistensi |
-| Outliers (IQR method) | `Hours_Studied` (43 outlier) → capping · `Exam_Score` (104 outlier) → capping · `Tutoring_Sessions` (430 outlier) → dibiarkan karena nilai 4–8 sesi masih logis secara domain |
+| **Bins** | `Hours_Studied` di-bin per 5 jam → histogram distribusi durasi belajar |
+| **Calculated Field** | `Performance Score` (High/Low Performer dari `Exam_Score`) dan `Study Habit Balance` (`Hours_Studied ≥ 5` AND `Sleep_Hours ≥ 7`) |
+| **Hierarchy + Drill Down/Up** | `Parental Education Level → Gender` untuk breakdown nilai ujian per level |
+| **Scatter Plot + Trend Line** | Korelasi `Hours_Studied` vs `Exam_Score`, warna per Gender |
+| **Reference Line** | Rata-rata keseluruhan sebagai baseline di line chart kehadiran vs nilai |
+| **Dashboard (Tiled Layout)** | 4 chart berkorelasi disusun dalam satu story dashboard dengan narasi terhubung |
 
-### Komponen Tableau yang Dipelajari
+### Key Findings
 
-**Data Pane:**
+| Variabel | Data | Signifikansi | Implikasi Bisnis |
+|---|---|---|---|
+| Kehadiran | Nilai: 64.15 (kehadiran ~60%) → 70.73 (kehadiran ~100%) | ✅ Tinggi | Program pemantauan kehadiran = ROI tertinggi |
+| Durasi belajar | High Performer: 26.1 jam/minggu vs Low Performer: 19.86 jam (+32%) | ✅ Tinggi | Structured study program terbukti worth it |
+| Keterlibatan orangtua | Low 66.24 → High 67.94 (selisih ~1.7 poin) | ⚠️ Rendah | Efek ada tapi kecil; program pendukung saja |
+| Gender | Female 19.99 jam vs Male 19.95 jam (hampir identik) | ❌ Tidak signifikan | Tidak perlu intervensi berbasis gender |
+| Durasi tidur | Flat ~67 untuk semua kelompok (3–11 jam) | ❌ Tidak signifikan | Program sleep hygiene tidak akan menggerakkan nilai |
 
-| Komponen | Deskripsi |
-|---|---|
-| Dimensions | Field kategorikal (teks, tanggal, boolean) untuk mengelompokkan data, tidak diagregasi secara default |
-| Measures | Field numerik yang diagregasi (SUM, AVG, COUNT, dll) |
-| Parameters | Variabel dinamis yang bisa diubah user saat runtime |
-| Sets | Subset data custom berdasarkan kondisi tertentu atau pilihan manual |
-| Calculated Fields | Field baru hasil komputasi menggunakan formula Tableau |
-| Bins | Pengelompokan nilai numerik ke dalam rentang berukuran sama |
-| Group | Penggabungan beberapa member dalam satu dimensi menjadi satu kategori baru secara manual |
+### Business Recommendation
 
-**Perbedaan Bins, Group, dan Convert to Dimension:**
-
-- **Bins** — untuk kolom angka yang ingin dilihat distribusinya dalam rentang tertentu, cocok untuk histogram (contoh: `Hours_Studied` dipecah jadi 0–5, 5–10, dst)
-- **Group** — untuk kolom kategori yang ingin digabungkan secara manual (contoh: Low + Medium pada `Motivation_Level` → "Non-High")
-- **Convert to Dimension** — untuk kolom angka yang merepresentasikan label, bukan nilai yang perlu diagregasi (contoh: `Tutoring_Sessions` sebagai sumbu kategori)
-
-### Visualisasi yang Dibuat (DatasetPerformaSiswa)
-
-| Chart | Pertanyaan | Insight |
-|---|---|---|
-| 5a | Perbandingan jam belajar berdasarkan gender | Female 19.99 jam vs Male 19.95 jam — hampir identik, gender tidak memengaruhi durasi belajar |
-| 5b | Komposisi siswa berdasarkan gender | 57.73% Female, 42.27% Male |
-| 5c | Gambaran tingkat motivasi siswa | Medium 3.351 · Low 1.937 · High 1.319 |
-| 5d | Kehadiran: siswa disabilitas vs non-disabilitas | Non-disabilitas 80.07 vs disabilitas 79.23 |
-| 5e | Rata-rata nilai ujian berdasarkan tingkat kehadiran | Tren positif: kehadiran rendah (~60) → nilai 64.15, kehadiran tinggi (~100) → nilai 70.73 |
-| 5f | Distribusi performa akademik berdasarkan nilai ujian | Terpusat di rentang 65–70, bin 65 terbanyak (3.530 siswa), menyerupai kurva normal |
-| 5g | Durasi belajar vs nilai ujian | Hubungan positif, tren naik untuk kedua gender |
-| 5h | Kehadiran vs performa akademik | Scatter plot menunjukkan hubungan positif yang konsisten |
-| 5i | Previous Score vs Exam Score berdasarkan kualitas guru | Pola positif kuat; kualitas guru tidak terlalu membedakan pola |
-| 5j | Pendidikan orangtua vs nilai ujian | High School 66.78 → College 67.21 → Postgraduate 67.87 |
-| 5k | Keterlibatan orangtua vs nilai ujian | Low 66.24 → Medium 67.02 → High 67.94 |
-| 5l | Durasi tidur vs nilai ujian | Relatif stabil di ~67 untuk semua durasi tidur, tidak signifikan |
-| 5m | Rata-rata jam belajar per kategori performa | High Performer 26.10 jam vs Low Performer 19.86 jam |
-| 5n | Keseimbangan kebiasaan belajar vs nilai ujian | Balanced 67.13 vs Unbalanced 67.12 — perbedaan tidak signifikan |
-
-**Dashboard Story (4 grafik berkorelasi):** Kebiasaan belajar sebagai penentu utama performa akademik — dimulai dari kesetaraan gender dalam durasi belajar, lalu korelasi positif kehadiran terhadap nilai, scatter plot jam belajar vs nilai, hingga perbedaan jam belajar High vs Low Performer (26.1 vs 19.86 jam).
+Dari 6.600+ siswa, **kehadiran dan durasi belajar adalah dua lever utama yang actionable**. Institusi sebaiknya fokus di sana — bukan di faktor demografis (gender) atau gaya hidup (tidur) yang datanya sendiri menunjukkan tidak membuat perbedaan.
 
 ---
 
 ## Tugas 4 — Analisis NPV (Net Present Value)
 
-**Dataset:** Soal keputusan investasi multi-skenario (dua opsi)  
-**Tool:** Microsoft Excel (perhitungan manual) · ChatGPT GPT-5.2 (pembanding Generative AI)
+**Dataset:** Keputusan investasi ekspansi kapasitas — 2 opsi, 4 skenario permintaan, 3 periode  
+**Tool:** Microsoft Excel
 
-### Ringkasan Analisis
+### Business Problem
 
-Tugas ini membandingkan hasil perhitungan Expected NPV secara manual menggunakan spreadsheet dengan hasil yang dihasilkan oleh Generative AI (ChatGPT GPT-5.2 versi gratis). Kedua opsi dievaluasi berdasarkan nilai Expected NPV untuk menentukan pilihan investasi terbaik.
+Perusahaan perlu memilih antara dua opsi ekspansi kapasitas produksi Asia untuk melayani pasar Asia dan Eropa, di tengah ketidakpastian permintaan masa depan. Keputusan ini tidak bisa hanya dilihat dari biaya investasi — harus memperhitungkan **seluruh arus kas yang bisa di-capture di setiap kemungkinan skenario**.
 
-### Hasil Perhitungan
+### Metodologi (Excel)
 
-| Metode | Expected NPV Opsi 1 | Expected NPV Opsi 2 | Rekomendasi |
+Model dibangun end-to-end di Excel, dengan struktur kalkulasi sebagai berikut:
+
+**1. Margin kontribusi per rute produksi** (dihitung dari parameter input)
+
+| Rute | Harga Jual | Biaya Produksi | Biaya Kirim | Margin/Unit |
+|---|---|---|---|---|
+| Asia → Asia | $40 | $15 | $0 | **$25** |
+| Asia → Eropa | $40 | $15 | $2 | **$23** |
+| Eropa → Eropa | $40 | $20 | $0 | **$20** |
+| Eropa → Asia | $40 | $20 | $2 | **$18** |
+
+**2. Kapasitas setelah ekspansi**
+
+| | Kapasitas Asia | Kapasitas Eropa | Berlaku |
 |---|---|---|---|
-| Manual (Spreadsheet) | $401,657,851.24 | $396,872,727.27 | Opsi 1 |
-| Generative AI (ChatGPT) | ≈ $124 juta | ≈ $123 juta | Opsi 1 |
+| Existing (P0) | 2.400.000 | 4.500.000 | P0 |
+| Opsi 1 (+2 juta unit) | 4.400.000 | 4.500.000 | P1 & P2 |
+| Opsi 2 (+1.5 juta unit) | 3.900.000 | 4.500.000 | P1 & P2 |
 
-Kesimpulan akhir keduanya sama: **Opsi 1 lebih baik dipilih** dibandingkan Opsi 2.
+**3. Skenario permintaan** — 4 kombinasi dari probabilitas independen Asia × Eropa
 
-### Sumber Perbedaan Nilai
+| Skenario | Pertumbuhan Asia | Pertumbuhan Eropa | Probabilitas |
+|---|---|---|---|
+| HH | +40% | +10% | 0.5 × 0.6 = **0.3** |
+| HL | +40% | −20% | 0.5 × 0.4 = **0.2** |
+| LH | +20% | +10% | 0.5 × 0.6 = **0.3** |
+| LL | +20% | −20% | 0.5 × 0.4 = **0.2** |
 
-| Aspek | Perhitungan Manual | ChatGPT |
+**4. Formula Expected NPV**
+
+Alokasi produksi dioptimalkan per skenario (Asia diprioritaskan karena margin lebih tinggi). NPV dihitung per skenario lalu di-weighted dengan probabilitas:
+
+```
+NPV(skenario) = (Profit_P0 − Investasi) + Profit_P1/(1.1)¹ + Profit_P2/(1.1)²
+Expected NPV  = Σ NPV(skenario) × Probabilitas(skenario)
+```
+
+### Hasil
+
+| | Opsi 1 | Opsi 2 |
 |---|---|---|
-| Periode yang dihitung | P0, P1, P2 | Hanya P2 |
-| Perlakuan diskonto | P1 didiskon 1× dengan (1.1)¹, P2 didiskon 2× dengan (1.1)² | EV dihitung dulu, lalu didiskon sekaligus dengan (1.1)² |
-| Komponen NPV | P0 net cash flow dimasukkan sebagai komponen NPV | P0 tidak dimasukkan |
-| Asumsi alokasi produksi | Eksplisit per skenario | Berbeda dari perhitungan manual |
+| Investasi | $17.000.000 | $15.000.000 |
+| P0 Net Cash Flow | $118.600.000 | $120.600.000 |
+| **Expected NPV** | **$401.657.851** | **$396.872.727** |
+| Selisih | +$4.784.851 vs Opsi 2 | — |
 
-### Analisis Kepercayaan Hasil
+### Business Recommendation
 
-Perhitungan manual dengan spreadsheet **lebih dapat dipercaya** karena:
-
-- Menghitung semua periode (P0, P1, P2) sesuai permintaan soal — ChatGPT melewatkan P0 dan P1 sehingga dua sumber cash flow yang signifikan tidak diperhitungkan
-- Perlakuan diskonto dilakukan per periode secara tepat — ChatGPT mendiskon seluruh EV sekaligus tanpa membedakan periode
-- Setiap langkah kalkulasi transparan dan dapat diverifikasi di spreadsheet
-
-Meski demikian, keduanya menghasilkan **rekomendasi akhir yang sama (Opsi 1)**, menunjukkan bahwa ChatGPT masih bisa memberikan arah keputusan yang benar meskipun nilai absolutnya tidak akurat.
+**Pilih Opsi 1.** Tambahan investasi $2 juta menghasilkan selisih NPV ~$4,8 juta — incremental ROI positif. Kapasitas lebih besar memberi kemampuan menyerap upside demand pada skenario pertumbuhan tinggi (HH + LH), yang secara agregat memiliki bobot probabilitas 60%. Dengan kata lain, memilih Opsi 2 menghemat $2 juta di muka tapi meninggalkan ~$4,8 juta di atas meja.
 
 ---
 
